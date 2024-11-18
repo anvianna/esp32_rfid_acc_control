@@ -1,7 +1,7 @@
 [submodule "DRIVERS"]
   path = lib/DRIVERS
-  url = git:https://bitbucket.org/cimatec_aee/esp32/src/master/
+  url = git@bitbucket.org:cimatec_aee/esp32/src/master/
 
 [submodule "COM_STD_HEADERS"]
   path = lib/COMMONS/COM_STD_HEADERS
-  url = git:https://bitbucket.org/cimatec_aee/com_std_headers/src/master/
+  url = git@bitbucket.org:cimatec_aee/com_std_headers/src/master/
