@@ -1,3 +1,4 @@
+#if 0
 #include "dev_mfrc522.hpp"
 
 #include <stdio.h>
@@ -337,3 +338,5 @@ uint8_t DevMFRC522::PCD_CommunicateWithPICC(
     }*/
     return STATUS_OK;
 } // End PCD_CommunicateWithPICC()
+
+#endif

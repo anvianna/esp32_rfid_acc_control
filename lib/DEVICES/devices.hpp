@@ -9,9 +9,9 @@
  * 
  */
 
-#ifdef  DEVICES_HPP
+#ifndef  DEVICES_HPP
 #define DEVICES_HPP
 
-#include "DEV_RFID/dev_rfid.hpp"
+#include "DEV_MFRC522/MFRC522.h"
 
 #endif
