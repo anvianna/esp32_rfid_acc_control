@@ -44,13 +44,13 @@ MFRC522::MFRC522(	byte chipSelectPin,		///< Arduino pin connected to MFRC522's S
 	_resetPowerDownPin = resetPowerDownPin;
 } // End constructor
 #endif
+
 MFRC522::MFRC522(void* spi_handle, void* reset_gpio_handle)
 {
 	if(spi_handle == nullptr || spi_handle == nullptr ) return;
 
 	m_spi_handle = (DrvSPI*)spi_handle;
-	m_resetPin = (DrvGPIO*)m_resetPin;
-
+	m_resetPin = (DrvGPIO*)reset_gpio_handle;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -74,13 +74,14 @@ void MFRC522::PCD_WriteRegister(	PCD_Register reg,	///< The register to write to
 	digitalWrite(_chipSelectPin, HIGH);		// Release slave again
 	SPI.endTransaction(); // Stop using the SPI bus
 	// */
-
+	
 	// SELENE transfer
 	PCD_Register l_reg = reg;
 	// Informing register address
-	m_spi_handle->write((uint8_t*)&l_reg,sizeof(byte));
+	printf("try write\n");
+	m_spi_handle->write((uint8_t*)&l_reg,sizeof(l_reg));
 	// Writing data
-	m_spi_handle->write((uint8_t*)&value,sizeof(byte));
+	m_spi_handle->write((uint8_t*)&value,sizeof(value));
 	
 } // End PCD_WriteRegister()
 
@@ -309,20 +310,25 @@ void MFRC522::PCD_Init() {
 	if(_resetPowerDownPin != UNUSED_PIN)
 	{
 		drvGpioConfig_t cfg = 
-		{	.direction = drvGpioDir_t::DRV_GPIO_DIR_INPUT,
-			.mode = drvGpioMode_t::DRV_GPIO_MODE_OPEN_DRAIN,
-			.interrupt = drvIoInterrupt_t::DRV_IO_IT_DISABLED,
-			.init_value = drvGpioState_t::DRV_GPIO_STATE_LOW,
-			.bias = drvGpioBias_t::DRV_GPIO_BIAS_DISABLE,
+		{	
+			.direction = DRV_GPIO_DIR_INPUT,
+			.mode = DRV_GPIO_MODE_PUSH_PULL,
+			.interrupt = DRV_IO_IT_DISABLED,
+			.init_value = DRV_GPIO_STATE_LOW,
+			.bias = DRV_GPIO_BIAS_DISABLE,
 		};
 		
 		if(m_resetPin->setConfig(cfg) != returnCode_t::ANSWERED_REQUEST)
 		{
+			printf("error1");
+			return;
 			// error handling
 		}
 		bool value = true;
 		if(m_resetPin->read(value) != returnCode_t::ANSWERED_REQUEST)
 		{
+			printf("error2");
+			return;
 			// error handling
 		}
 		if(!value) // The MFRC522 chip is in power down mode.
@@ -339,9 +345,10 @@ void MFRC522::PCD_Init() {
 	//
 
 	if (!hardReset) { // Perform a soft reset if we haven't triggered a hard reset above.
+		printf("Soft Reset Init\n");
 		PCD_Reset();
 	}
-	
+	printf("setting registers\n");
 	// Reset baud rates
 	PCD_WriteRegister(TxModeReg, 0x00);
 	PCD_WriteRegister(RxModeReg, 0x00);
