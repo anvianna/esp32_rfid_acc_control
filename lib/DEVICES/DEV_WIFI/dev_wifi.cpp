@@ -1,8 +1,14 @@
 #include "dev_wifi.hpp"
+#include <esp_sntp.h>
 
 const char *WIFI::TAG = "wifi";
 const int WIFI::WIFI_CONNECTED_BIT = BIT0;
 EventGroupHandle_t WIFI::s_wifi_event_group = nullptr;
+
+const char *ntpServer = "pool.ntp.org";
+
+// Fuso horário (em segundos) - 3 horas para o Brasil (GMT -3)
+const long timezoneOffset = -3 * 3600;
 
 WIFI::WIFI(const char *ssid, const char *password) : ssid(ssid), password(password)
 {
@@ -11,8 +17,53 @@ WIFI::WIFI(const char *ssid, const char *password) : ssid(ssid), password(passwo
 
 void WIFI::start()
 {
+  // Initialize NVS
+  esp_err_t ret = nvs_flash_init();
+  if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+  {
+    ESP_ERROR_CHECK(nvs_flash_erase());
+    ret = nvs_flash_init();
+  }
+  ESP_ERROR_CHECK(ret);
+
   ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
   wifi_init_sta();
+
+  init_sntp();
+}
+
+void WIFI::init_sntp()
+{
+  ESP_LOGI(TAG, "Initializing SNTP");
+
+  // Configura o servidor SNTP
+  esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+  esp_sntp_setservername(0, (char *)ntpServer);
+
+  // Inicia o SNTP
+  esp_sntp_init();
+
+  // Aguarda a sincronização do tempo (até 10 segundos)
+  time_t now = 0;
+  struct tm timeinfo;
+  memset(&timeinfo, 0, sizeof(struct tm)); // Zera toda a estrutura timeinfo
+
+  int retry = 0;
+  const int retry_count = 10;
+  while (timeinfo.tm_year < (2020 - 1900) && ++retry < retry_count)
+  {
+    ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    time(&now);
+    localtime_r(&now, &timeinfo);
+  }
+
+  // Aplica o offset de fuso horário
+  now += timezoneOffset;
+  localtime_r(&now, &timeinfo);
+
+  // Exibe a hora atualizada
+  ESP_LOGI(TAG, "Current time: %s", asctime(&timeinfo));
 }
 
 void WIFI::event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
