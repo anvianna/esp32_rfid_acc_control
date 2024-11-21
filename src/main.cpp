@@ -42,7 +42,7 @@ void rfidTask(void *pvParameter)
     for(uint8_t i =0; i < rfid_reader.uid.size; i++)
     {
         LastUid[i] = rfid_reader.uid.uidByte[i];
-        if(new_Uid && LastUid[i] != LastUidProcessed[i]){
+        if(new_Uid && (LastUid[i] != LastUidProcessed[i])){
             new_Uid = false;
         }
     }
