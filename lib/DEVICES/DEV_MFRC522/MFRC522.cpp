@@ -76,12 +76,12 @@ void MFRC522::PCD_WriteRegister(	PCD_Register reg,	///< The register to write to
 	// */
 	
 	// SELENE transfer
-	PCD_Register l_reg = reg;
 	// Informing register address
 	//printf("try write\n");
-	m_spi_handle->write((uint8_t*)&l_reg,sizeof(l_reg));
+	m_spi_handle->write((uint8_t*)&reg,sizeof(reg));
 	// Writing data
 	m_spi_handle->write((uint8_t*)&value,sizeof(value));
+	//vTaskDelay(1);
 	
 } // End PCD_WriteRegister()
 
@@ -113,6 +113,7 @@ void MFRC522::PCD_WriteRegister(	PCD_Register reg,	///< The register to write to
 	for (byte index = 0; index < count; index++) {
 		m_spi_handle->write((uint8_t*)&values[index],sizeof(byte));
 	}
+	//vTaskDelay(1);
 } // End PCD_WriteRegister()
 
 /**
@@ -1519,25 +1520,25 @@ const __FlashStringHelper *MFRC522::PICC_GetTypeName(PICC_Type piccType	///< One
  * Shows all known firmware versions
  */
 void MFRC522::PCD_DumpVersionToSerial() {
-	/*// Supressed
+	// /*// Supressed
 	// Get the MFRC522 firmware version
 	byte v = PCD_ReadRegister(VersionReg);
 	
-	Serial.print(F("Firmware Version: 0x"));
-	Serial.print(v, HEX);
+	printf("Firmware Version: 0x");//Serial.print(F("Firmware Version: 0x"));
+	printf("%X",v);//Serial.print(v, HEX);
 	
 	// Lookup which version
 	switch(v) {
-		case 0x88: Serial.println(F(" = (clone)"));  break;
-		case 0x90: Serial.println(F(" = v0.0"));     break;
-		case 0x91: Serial.println(F(" = v1.0"));     break;
-		case 0x92: Serial.println(F(" = v2.0"));     break;
-		case 0x12: Serial.println(F(" = counterfeit chip"));     break;
-		default:   Serial.println(F(" = (unknown)"));
+		case 0x88: printf(" = (clone)\n\r");break;//Serial.println(F(" = (clone)"));  break;
+		case 0x90: printf(" = v0.0\n\r");break;//Serial.println(F(" = v0.0"));     break;
+		case 0x91: printf(" = v1.0\n\r");break;//Serial.println(F(" = v1.0"));     break;
+		case 0x92: printf(" = v2.0\n\r");break;//Serial.println(F(" = v2.0"));     break;
+		case 0x12: printf(" = counterfeit chip\n\r");//Serial.println(F(" = counterfeit chip"));     break;
+		default:   printf(" = (unknown)\n\r");//Serial.println(F(" = (unknown)"));
 	}
 	// When 0x00 or 0xFF is returned, communication probably failed
 	if ((v == 0x00) || (v == 0xFF))
-		Serial.println(F("WARNING: Communication failure, is the MFRC522 properly connected?"));
+		printf("WARNING: Communication failure, is the MFRC522 properly connected?");//Serial.println(F("WARNING: Communication failure, is the MFRC522 properly connected?"));
 	// */
 } // End PCD_DumpVersionToSerial()
 
@@ -1549,7 +1550,7 @@ void MFRC522::PCD_DumpVersionToSerial() {
  */
 void MFRC522::PICC_DumpToSerial(Uid *uid	///< Pointer to Uid struct returned from a successful PICC_Select().
 								) {
-	#if 0
+	#if 1
 	MIFARE_Key key;
 	
 	// Dump UID, SAK and Type
@@ -1577,7 +1578,8 @@ void MFRC522::PICC_DumpToSerial(Uid *uid	///< Pointer to Uid struct returned fro
 		case PICC_TYPE_ISO_18092:
 		case PICC_TYPE_MIFARE_PLUS:
 		case PICC_TYPE_TNP3XXX:
-			Serial.println(F("Dumping memory contents not implemented for that PICC type."));
+			//Serial.println(F("Dumping memory contents not implemented for that PICC type."));
+			printf("Dumping memory contents not implemented for that PICC type.\n\r");
 			break;
 			
 		case PICC_TYPE_UNKNOWN:
@@ -1586,7 +1588,7 @@ void MFRC522::PICC_DumpToSerial(Uid *uid	///< Pointer to Uid struct returned fro
 			break; // No memory dump here
 	}
 	
-	Serial.println();
+	printf("\n\r");//Serial.println();
 	PICC_HaltA(); // Already done if it was a MIFARE Classic PICC.
 	#endif
 } // End PICC_DumpToSerial()

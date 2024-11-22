@@ -9,7 +9,7 @@
 #define PIN_CLK drvIoPin_t::DRV_IO_PIN_18
 #define PIN_MISO drvIoPin_t::DRV_IO_PIN_19
 #define PIN_MOSI drvIoPin_t::DRV_IO_PIN_23
-#define PIN_SS drvIoPin_t::DRV_IO_PIN_5
+#define PIN_SS drvIoPin_t::DRV_IO_PIN_21//5
 
 spi_config_t config = 
     {
@@ -25,7 +25,7 @@ spi_config_t config =
 // Spi handling
 DrvSPI spi_instance(&config,drvIoPort_t::DRV_IO_PORT_A,PIN_SS,false);
 // Pin for reseting MFRC522
-DrvGPIO RFID_reset(drvIoPort_t::DRV_IO_PORT_A,drvIoPin_t::DRV_IO_PIN_12);
+DrvGPIO RFID_reset(drvIoPort_t::DRV_IO_PORT_A,drvIoPin_t::DRV_IO_PIN_17);
 // Object construction
 MFRC522 rfid_reader(&spi_instance,&RFID_reset);
 
@@ -37,47 +37,32 @@ void rfidTask(void *pvParameter)
     printf("Teste22\n");
     //vTaskDelay(pdMS_TO_TICKS(5000));
     rfid_reader.PCD_Init();
-    printf("Teste2\n");
-    uint8_t LastUid[10];
+    rfid_reader.PCD_DumpVersionToSerial();
+    printf("Scan PICC to see UID, SAK, type, and data blocks...\n\r");
+    //uint8_t LastUid[10];
     int64_t now = esp_timer_get_time();
     for(;;)
     {
-        //vTaskDelay(pdMS_TO_TICKS(500));
-        if(now+1000000 >= esp_timer_get_time())
+        //vTaskDelay(pdMS_TO_TICKS(20));
+        if(now+2e6 <= esp_timer_get_time())
         {
-            printf("now: %lli\n",now);
+            printf("...\n");
             now = esp_timer_get_time();
         //vTaskDelay(pdMS_TO_TICKS(10));
         //if(!rfid_reader.PICC_IsNewCardPresent() || !rfid_reader.PICC_ReadCardSerial())
         //{
         //    continue;
         //}
-        if(rfid_reader.PICC_IsNewCardPresent())
+        }
+        vTaskDelay(pdMS_TO_TICKS(1));
+        if(!rfid_reader.PICC_IsNewCardPresent() || !rfid_reader.PICC_ReadCardSerial())
         {
-            printf("card present");
-            if(rfid_reader.PICC_ReadCardSerial())
-            {
-                printf("New_card detected:");
-                new_Uid = true;
-                for(uint8_t i =0; i < rfid_reader.uid.size; i++)
-                {
-                    LastUid[i] = rfid_reader.uid.uidByte[i];
-                    printf("%X",LastUid[i]);
-                    if(new_Uid && (LastUid[i] != LastUidProcessed[i])){
-                        new_Uid = false;
-                    }
-                }
-                printf("\n\r");
-                if(new_Uid){
-                    memcpy(LastUidProcessed,LastUid,sizeof(LastUid));
-                }
-                rfid_reader.PICC_HaltA();
-                rfid_reader.PCD_StopCrypto1();
-            }
+            //taskYIELD();
+            //
             continue;
         }
-        }
-        
+        rfid_reader.PICC_DumpDetailsToSerial(&(rfid_reader.uid));
+        printf("\n**********\n");
     }
 }
 
@@ -93,11 +78,11 @@ void app_main()
     }
 
     //Setting RFID reading
-    xTaskCreate(rfidTask,"rfidTask",1024*10,NULL,1,&rfid_task_handle);
+    xTaskCreatePinnedToCore(rfidTask,"rfidTask",1024*10,NULL,1,&rfid_task_handle,0);
 
     for(;;)
     {
-        vTaskDelay(1);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 } // extern "C"
