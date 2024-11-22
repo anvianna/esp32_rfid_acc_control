@@ -3,12 +3,13 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/spi_master.h"
+#include "esp_timer.h"
 
 // GPIO PINOUT TO SPI
-#define PIN_CLK drvIoPin_t::DRV_IO_PIN_6
-#define PIN_MISO drvIoPin_t::DRV_IO_PIN_7
-#define PIN_MOSI drvIoPin_t::DRV_IO_PIN_8
-#define PIN_SS drvIoPin_t::DRV_IO_PIN_11
+#define PIN_CLK drvIoPin_t::DRV_IO_PIN_18
+#define PIN_MISO drvIoPin_t::DRV_IO_PIN_19
+#define PIN_MOSI drvIoPin_t::DRV_IO_PIN_23
+#define PIN_SS drvIoPin_t::DRV_IO_PIN_5
 
 spi_config_t config = 
     {
@@ -17,7 +18,7 @@ spi_config_t config =
     .PIN_NUM_CLK =  (int)PIN_CLK,
     .CLOCK_SPEED_HZ = MFRC522_SPICLOCK,
     .MODE = driverSPImode_t::DRV_SPI_CLK_0_PHA_0,
-    .SPI_host_number = driverSPIPeripheral_t::DRV_SPI_PERIPHERAL_1
+    .SPI_host_number = driverSPIPeripheral_t::DRV_SPI_PERIPHERAL_2
     };
 
 //spi_config_t config;    
@@ -38,27 +39,45 @@ void rfidTask(void *pvParameter)
     rfid_reader.PCD_Init();
     printf("Teste2\n");
     uint8_t LastUid[10];
+    int64_t now = esp_timer_get_time();
     for(;;)
     {
-        printf("Teste 3\n");
-        vTaskDelay(pdMS_TO_TICKS(100));
-        if(!rfid_reader.PICC_IsNewCardPresent() || !rfid_reader.PICC_ReadCardSerial())
+        //vTaskDelay(pdMS_TO_TICKS(500));
+        if(now+1000000 >= esp_timer_get_time())
         {
+            printf("now: %lli\n",now);
+            now = esp_timer_get_time();
+        //vTaskDelay(pdMS_TO_TICKS(10));
+        //if(!rfid_reader.PICC_IsNewCardPresent() || !rfid_reader.PICC_ReadCardSerial())
+        //{
+        //    continue;
+        //}
+        if(rfid_reader.PICC_IsNewCardPresent())
+        {
+            printf("card present");
+            if(rfid_reader.PICC_ReadCardSerial())
+            {
+                printf("New_card detected:");
+                new_Uid = true;
+                for(uint8_t i =0; i < rfid_reader.uid.size; i++)
+                {
+                    LastUid[i] = rfid_reader.uid.uidByte[i];
+                    printf("%X",LastUid[i]);
+                    if(new_Uid && (LastUid[i] != LastUidProcessed[i])){
+                        new_Uid = false;
+                    }
+                }
+                printf("\n\r");
+                if(new_Uid){
+                    memcpy(LastUidProcessed,LastUid,sizeof(LastUid));
+                }
+                rfid_reader.PICC_HaltA();
+                rfid_reader.PCD_StopCrypto1();
+            }
             continue;
         }
-        new_Uid = true;
-        for(uint8_t i =0; i < rfid_reader.uid.size; i++)
-        {
-            LastUid[i] = rfid_reader.uid.uidByte[i];
-            if(new_Uid && (LastUid[i] != LastUidProcessed[i])){
-                new_Uid = false;
-            }
         }
-        if(new_Uid){
-            memcpy(LastUidProcessed,LastUid,sizeof(LastUid));
-        }
-        rfid_reader.PICC_HaltA();
-        rfid_reader.PCD_StopCrypto1();
+        
     }
 }
 

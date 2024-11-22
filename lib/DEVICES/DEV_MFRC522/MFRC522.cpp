@@ -78,7 +78,7 @@ void MFRC522::PCD_WriteRegister(	PCD_Register reg,	///< The register to write to
 	// SELENE transfer
 	PCD_Register l_reg = reg;
 	// Informing register address
-	printf("try write\n");
+	//printf("try write\n");
 	m_spi_handle->write((uint8_t*)&l_reg,sizeof(l_reg));
 	// Writing data
 	m_spi_handle->write((uint8_t*)&value,sizeof(value));
@@ -135,6 +135,9 @@ byte MFRC522::PCD_ReadRegister(	PCD_Register reg	///< The register to read from.
 
 	// SELENE Transfer
 	byte read_reg = 0x80 | reg ;
+	m_spi_handle->write(&read_reg,sizeof(byte));
+	//m_spi_handle->write(&read_reg,sizeof(byte));
+	read_reg = 0;
 	m_spi_handle->writeRead(&read_reg,(uint8_t*)&value,sizeof(byte),sizeof(byte));
 	
 	return value;
