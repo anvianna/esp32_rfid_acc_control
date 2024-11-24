@@ -12,6 +12,7 @@
 #define PIN_SS drvIoPin_t::DRV_IO_PIN_5
 #define PIN_RST drvIoPin_t::DRV_IO_PIN_17
 
+#if 1
 spi_config_t config = 
     {
     .PIN_NUM_MOSI = (int)PIN_MOSI,
@@ -85,17 +86,15 @@ void rfidTask(void *pvParameter)
         }
     }
 }
+#endif
 
 TaskHandle_t rfid_task_handle = nullptr;
+
 
 extern "C"{
 void app_main()
 {
     printf("Teste1\n");
-    for(uint8_t i = 0; i < 10; i++)
-    {
-        LastUidProcessed[i] = 0;
-    }
 
     //Setting RFID reading
     xTaskCreatePinnedToCore(rfidTask,"rfidTask",1024*10,NULL,1,&rfid_task_handle,0);

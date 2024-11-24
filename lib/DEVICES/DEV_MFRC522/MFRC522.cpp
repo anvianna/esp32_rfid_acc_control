@@ -173,7 +173,9 @@ void MFRC522::PCD_ReadRegister(	PCD_Register reg,	///< The register to read from
 	if (count == 0) {
 		return;
 	}
-	printf("Reading %u bytes from register 0x%X : %u \n",count,reg,rxAlign);
+	byte m_count;// = count;
+	memcpy(&m_count,&count,1);
+	printf("Reading %u bytes from register 0x%X : %u \n",m_count,reg,rxAlign);
 	//Serial.print(F("Reading ")); 	Serial.print(count); Serial.println(F(" bytes from register."));
 	byte address = 0x80 | reg;				// MSB == 1 is for reading. LSB is not used in address. Datasheet section 8.1.2.3.
 	byte index = 0;							// Index in values array.
@@ -236,12 +238,21 @@ void MFRC522::PCD_ReadRegister(	PCD_Register reg,	///< The register to read from
 
 	// SELENE TRANSFER
 	m_spi_handle->write(&address,sizeof(byte));
-	count--;
-	if(count != 1){
-		m_spi_handle->writeRead(&address,values,1,count-1);
+	m_count--;
+	byte txData[m_count+1];//={0};
+	while (index < m_count)
+	{
+		txData[index] = address;
+		index++;
 	}
+	if(m_count > 1){
+		m_spi_handle->writeRead(txData,values,16,m_count);
+	}
+	// if(count != 1){
+	// 	m_spi_handle->writeRead(&address,values,1,count-1);
+	// }
 	byte endTransfer = 0;
-	m_spi_handle->writeRead(&endTransfer,&values[count],1,1);
+	m_spi_handle->writeRead(&endTransfer,&values[m_count],1,1);
 
 	if (rxAlign) {		// Only update bit positions rxAlign..7 in values[0]
 		// Create bit mask for bit positions rxAlign..7
@@ -251,7 +262,7 @@ void MFRC522::PCD_ReadRegister(	PCD_Register reg,	///< The register to read from
 		values[0] = (values[0] & ~mask) | (value & mask);
 	}
 	printf("V =");
-	for(byte u = 0;u < count + 1 ; u++)
+	for(byte u = 0;u <= m_count; u++)
 	{
 		printf(" %u",values[u]);
 	}
@@ -739,9 +750,12 @@ MFRC522::StatusCode MFRC522::PCD_CommunicateWithPICC(	byte command,		///< The co
 		if (n > *backLen) {
 			return STATUS_NO_ROOM;
 		}
-		//if(n == 0) printf("MF is 0\n");
+		if(n == 0){printf("MF is 0\n");}
 		*backLen = n;											// Number of bytes returned
+		printf("1 - bL is %u\n",*backLen);
 		PCD_ReadRegister(FIFODataReg, n, backData, rxAlign);	// Get received data from FIFO
+		*backLen = n;
+		printf("2 - bL is %u\n",*backLen);
 		_validBits = PCD_ReadRegister(ControlReg) & 0x07;		// RxLastBits[2:0] indicates the number of valid bits in the last received byte. If this value is 000b, the whole byte is valid.
 		if (validBits) {
 			*validBits = _validBits;
@@ -757,6 +771,7 @@ MFRC522::StatusCode MFRC522::PCD_CommunicateWithPICC(	byte command,		///< The co
 	
 	// Perform CRC_A validation if requested.
 	if (backData && backLen && checkCRC) {
+		printf("3 - bL is %u\n",*backLen);
 		// In this case a MIFARE Classic NAK is not OK.
 		if (*backLen == 1 && _validBits == 4) {
 			printf("error in MIFARE NACK\n");
@@ -769,6 +784,7 @@ MFRC522::StatusCode MFRC522::PCD_CommunicateWithPICC(	byte command,		///< The co
 		// Verify CRC_A - do our own calculation and store the control in controlBuffer.
 		byte controlBuffer[2];
 		MFRC522::StatusCode status = PCD_CalculateCRC(&backData[0], *backLen - 2, &controlBuffer[0]);
+		printf("4 - bL is %u\n",*backLen);
 		if (status != STATUS_OK) {
 			printf("error in CRC_A\n");
 			return status;
@@ -779,7 +795,7 @@ MFRC522::StatusCode MFRC522::PCD_CommunicateWithPICC(	byte command,		///< The co
 	}
 	//printf("Readed 4 \n");
 	
-	
+	printf("791 - rL: %u tLB: %u\n",*backLen, *validBits);
 	return STATUS_OK;
 } // End PCD_CommunicateWithPICC()
 
@@ -1002,6 +1018,7 @@ MFRC522::StatusCode MFRC522::PICC_Select(	Uid *uid,			///< Pointer to Uid struct
 			// Transmit the buffer and receive the response.
 			printf("PICC_Select transceive\n");
 			result = PCD_TransceiveData(buffer, bufferUsed, responseBuffer, &responseLength, &txLastBits, rxAlign);
+			printf("1014- rL: %u tLB: %u\n",responseLength, txLastBits);
 			if (result == STATUS_COLLISION) { // More than one PICC in the field => collision.
 				printf("Status Colision\n");
 				byte valueOfCollReg = PCD_ReadRegister(CollReg); // CollReg[7..0] bits are: ValuesAfterColl reserved CollPosNotValid CollPos[4:0]
@@ -1051,6 +1068,8 @@ MFRC522::StatusCode MFRC522::PICC_Select(	Uid *uid,			///< Pointer to Uid struct
 		
 		// Check response SAK (Select Acknowledge)
 		if (responseLength != 3 || txLastBits != 0) { // SAK must be exactly 24 bits (1 byte + CRC_A).
+			printf("ERROR - LINHA 1063\n");
+			printf("rL: %u tLB: %u\n",responseLength, txLastBits);
 			return STATUS_ERROR;
 		}
 		// Verify CRC_A - do our own calculation and store the control in buffer[2..3] - those bytes are not needed anymore.
@@ -1104,6 +1123,7 @@ MFRC522::StatusCode MFRC522::PICC_HaltA() {
 		return STATUS_OK;
 	}
 	if (result == STATUS_OK) { // That is ironically NOT ok in this case ;-)
+		printf("ERROR - LINHA 1117\n");
 		return STATUS_ERROR;
 	}
 	return result;
@@ -1511,6 +1531,7 @@ MFRC522::StatusCode MFRC522::PCD_MIFARE_Transceive(	byte *sendData,		///< Pointe
 	}
 	// The PICC must reply with a 4 bit ACK
 	if (cmdBufferSize != 1 || validBits != 4) {
+		printf("ERROR - LINHA 1525\n");
 		return STATUS_ERROR;
 	}
 	if (cmdBuffer[0] != MF_ACK) {
