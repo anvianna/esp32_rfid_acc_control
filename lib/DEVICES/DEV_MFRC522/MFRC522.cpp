@@ -78,10 +78,13 @@ void MFRC522::PCD_WriteRegister(	PCD_Register reg,	///< The register to write to
 	// SELENE transfer
 	// Informing register address
 	//printf("try write\n");
-	m_spi_handle->write((uint8_t*)&reg,sizeof(reg));
+		//m_spi_handle->write((uint8_t*)&reg,sizeof(reg));
 	// Writing data
-	m_spi_handle->write((uint8_t*)&value,sizeof(value));
+		//m_spi_handle->write((uint8_t*)&value,sizeof(value));
 	//vTaskDelay(1);
+	byte tx_data[2] = {reg,value};
+	m_spi_handle->write(tx_data,sizeof(tx_data));
+
 	
 } // End PCD_WriteRegister()
 
@@ -108,11 +111,22 @@ void MFRC522::PCD_WriteRegister(	PCD_Register reg,	///< The register to write to
 
 	// Selene Transfer
 	// Informing register address
-	m_spi_handle->write((uint8_t*)&reg,sizeof(byte));
+		//m_spi_handle->write((uint8_t*)&reg,sizeof(byte));
 	// Writing data
-	for (byte index = 0; index < count; index++) {
-		m_spi_handle->write((uint8_t*)&values[index],sizeof(byte));
-	}
+	// for (byte index = 0; index < count; index++) {
+	// 	m_spi_handle->write((uint8_t*)&values[index],sizeof(byte));
+	// }
+	//printf("Writing %u bytes to 0x%X reg\n",count,reg);
+		//m_spi_handle->write((uint8_t*)&values,count);
+
+	byte total[count+1];
+	total[0] = reg;
+	for (int i = 1; i <= count; ++i)
+    {
+        total[i] = values[i-1];
+    }
+	m_spi_handle->write(total,count+1);
+
 	//vTaskDelay(1);
 } // End PCD_WriteRegister()
 
@@ -159,6 +173,7 @@ void MFRC522::PCD_ReadRegister(	PCD_Register reg,	///< The register to read from
 	if (count == 0) {
 		return;
 	}
+	printf("Reading %u bytes from register 0x%X : %u \n",count,reg,rxAlign);
 	//Serial.print(F("Reading ")); 	Serial.print(count); Serial.println(F(" bytes from register."));
 	byte address = 0x80 | reg;				// MSB == 1 is for reading. LSB is not used in address. Datasheet section 8.1.2.3.
 	byte index = 0;							// Index in values array.
@@ -186,7 +201,7 @@ void MFRC522::PCD_ReadRegister(	PCD_Register reg,	///< The register to read from
 	digitalWrite(_chipSelectPin, HIGH);			// Release slave again
 	SPI.endTransaction(); // Stop using the SPI bus
 	// */
-
+	#if 0
 	// SELENE TRANSFER
 	count--; // One read is performed outside of the loop
 	m_spi_handle->write(&address,sizeof(byte)); // Tell MFRC522 which address we want to read
@@ -194,19 +209,57 @@ void MFRC522::PCD_ReadRegister(	PCD_Register reg,	///< The register to read from
 		// Create bit mask for bit positions rxAlign..7
 		byte mask = (0xFF << rxAlign) & 0xFF;
 		// Read value and tell that we want to read the same address again.
-		byte value = m_spi_handle->write(&address,sizeof(byte));//SPI.transfer(address);
+		byte value = 0;// = m_spi_handle->write(&address,sizeof(byte));//SPI.transfer(address);
+		m_spi_handle->writeRead(&address,&value,1,1);
+		printf("RxA = 0x%X\n",value);
 		// Apply mask to both current value of values[0] and the new data in value.
 		values[0] = (values[0] & ~mask) | (value & mask);
 		index++;
+		printf("V = 0x%X",values[0]);
+		
 	}
 	// Repeat the ask for the register adress getting the values from the FIFO
-	while(index < count) 
-	{
-		m_spi_handle->writeRead(&address,(uint8_t*)&values[index],sizeof(byte),sizeof(byte));
-		index++;
+	// while(false)//index < count) 
+	// {
+	// 	m_spi_handle->writeRead(&address,(uint8_t*)&values[index],sizeof(byte),sizeof(byte));
+	// 	index++;
+	// 	printf("0x%X",values[index]);
+	// }
+	//count - index;
+	m_spi_handle->writeRead(&address,(uint8_t*)&values[index],1,count - 2);
+	//index += count-2;
+	byte endTransfer = 0;
+	//m_spi_handle->write((uint8_t*)&endTransfer,sizeof(byte));
+	m_spi_handle->writeRead((uint8_t*)&endTransfer,&values[count-1],1,1);
+	printf(" 0x%X\n",values[index]);
+	#endif
+
+	// SELENE TRANSFER
+	m_spi_handle->write(&address,sizeof(byte));
+	count--;
+	if(count != 1){
+		m_spi_handle->writeRead(&address,values,1,count-1);
 	}
 	byte endTransfer = 0;
-	m_spi_handle->write((uint8_t*)&endTransfer,sizeof(byte));
+	m_spi_handle->writeRead(&endTransfer,&values[count],1,1);
+
+	if (rxAlign) {		// Only update bit positions rxAlign..7 in values[0]
+		// Create bit mask for bit positions rxAlign..7
+		byte mask = (0xFF << rxAlign) & 0xFF;
+		// Read value and tell that we want to read the same address again.
+		byte value = 0;// = m_spi_handle->write(&address,sizeof(byte));//SPI.transfer(address);
+		values[0] = (values[0] & ~mask) | (value & mask);
+	}
+	printf("V =");
+	for(byte u = 0;u < count + 1 ; u++)
+	{
+		printf(" %u",values[u]);
+	}
+	printf("\n\r");
+
+
+
+
 } // End PCD_ReadRegister()
 
 /**
@@ -272,6 +325,7 @@ MFRC522::StatusCode MFRC522::PCD_CalculateCRC(	byte *data,		///< In: Pointer to 
 	while (static_cast<int64_t> (esp_timer_get_time()) < deadline);
 
 	// 89ms passed and nothing happened. Communication with the MFRC522 might be down.
+	printf("CRC Timeout - LINHA 328\n");
 	return STATUS_TIMEOUT;
 } // End PCD_CalculateCRC()
 
@@ -328,7 +382,7 @@ void MFRC522::PCD_Init() {
 			return;
 			// error handling
 		}
-		bool value = true;
+		bool value = false;
 		if(m_resetPin->read(value) != returnCode_t::ANSWERED_REQUEST)
 		{
 			printf("error2");
@@ -337,10 +391,11 @@ void MFRC522::PCD_Init() {
 		}
 		if(!value) // The MFRC522 chip is in power down mode.
 		{
+			printf("Hard Reset \n");
 			cfg.direction = drvGpioDir_t::DRV_GPIO_DIR_OUTPUT;
 			m_resetPin->setConfig(cfg); // transform pin to OUTPUT;
 			m_resetPin->write(false); // rectify low level
-			vTaskDelay(pdMS_TO_TICKS(1)); // wait at least 1ms
+			vTaskDelay(pdMS_TO_TICKS(10)); // wait at least 1ms
 			m_resetPin->write(true); // Exit power down mode. This triggers a hard reset.
 			vTaskDelay(pdMS_TO_TICKS(50));
 			hardReset = true;
@@ -406,6 +461,7 @@ void MFRC522::PCD_Reset() {
 	do {
 		// Wait for the PowerDown bit in CommandReg to be cleared (max 3x50ms)
 		vTaskDelay(pdMS_TO_TICKS(50)); //delay(50);
+		printf("PCD_reset\n");
 	} while ((PCD_ReadRegister(CommandReg) & (1 << 4)) && (++count) < 3);
 } // End PCD_Reset()
 
@@ -520,6 +576,7 @@ bool MFRC522::PCD_PerformSelfTest() {
 			reference = MFRC522_firmware_referenceV2_0;
 			break;
 		default:	// Unknown version
+			printf("wrong version\n");
 			return false; // abort test
 	}
 	
@@ -534,10 +591,12 @@ bool MFRC522::PCD_PerformSelfTest() {
 	*/
 	for (uint8_t i = 0; i < 64; i++) {
 		if (result[i] != reference[i]) {
+			
+			printf("Test failed - 1\n");
 			return false;
 		}
 	}
-	
+	printf("Test worked\n");
 	// 8. Perform a re-init, because PCD does not work after test.
 	// Reset does not work as expected.
 	// "Auto self-test done" does not work as expected.
@@ -651,6 +710,7 @@ MFRC522::StatusCode MFRC522::PCD_CommunicateWithPICC(	byte command,		///< The co
 			break;
 		}
 		if (n & 0x01) {						// Timer interrupt - nothing received in 25ms
+			//printf("TIMEOUT - LINHA 713\n");
 			return STATUS_TIMEOUT;
 		}
 		taskYIELD(); // yield();
@@ -660,8 +720,10 @@ MFRC522::StatusCode MFRC522::PCD_CommunicateWithPICC(	byte command,		///< The co
 
 	// 36ms and nothing happened. Communication with the MFRC522 might be down.
 	if (!completed) {
+		printf("TIMEOUT - LINHA 723\n");
 		return STATUS_TIMEOUT;
 	}
+	//printf("Readed 1 \n");
 	
 	// Stop now if any errors except collisions were detected.
 	byte errorRegValue = PCD_ReadRegister(ErrorReg); // ErrorReg[7..0] bits are: WrErr TempErr reserved BufferOvfl CollErr CRCErr ParityErr ProtocolErr
@@ -677,6 +739,7 @@ MFRC522::StatusCode MFRC522::PCD_CommunicateWithPICC(	byte command,		///< The co
 		if (n > *backLen) {
 			return STATUS_NO_ROOM;
 		}
+		//if(n == 0) printf("MF is 0\n");
 		*backLen = n;											// Number of bytes returned
 		PCD_ReadRegister(FIFODataReg, n, backData, rxAlign);	// Get received data from FIFO
 		_validBits = PCD_ReadRegister(ControlReg) & 0x07;		// RxLastBits[2:0] indicates the number of valid bits in the last received byte. If this value is 000b, the whole byte is valid.
@@ -684,16 +747,19 @@ MFRC522::StatusCode MFRC522::PCD_CommunicateWithPICC(	byte command,		///< The co
 			*validBits = _validBits;
 		}
 	}
+	//printf("Readed 2 \n");
 	
 	// Tell about collisions
 	if (errorRegValue & 0x08) {		// CollErr
 		return STATUS_COLLISION;
 	}
+	//printf("Readed 3 \n");
 	
 	// Perform CRC_A validation if requested.
 	if (backData && backLen && checkCRC) {
 		// In this case a MIFARE Classic NAK is not OK.
 		if (*backLen == 1 && _validBits == 4) {
+			printf("error in MIFARE NACK\n");
 			return STATUS_MIFARE_NACK;
 		}
 		// We need at least the CRC_A value and all 8 bits of the last byte must be received.
@@ -704,12 +770,15 @@ MFRC522::StatusCode MFRC522::PCD_CommunicateWithPICC(	byte command,		///< The co
 		byte controlBuffer[2];
 		MFRC522::StatusCode status = PCD_CalculateCRC(&backData[0], *backLen - 2, &controlBuffer[0]);
 		if (status != STATUS_OK) {
+			printf("error in CRC_A\n");
 			return status;
 		}
 		if ((backData[*backLen - 2] != controlBuffer[0]) || (backData[*backLen - 1] != controlBuffer[1])) {
 			return STATUS_CRC_WRONG;
 		}
 	}
+	//printf("Readed 4 \n");
+	
 	
 	return STATUS_OK;
 } // End PCD_CommunicateWithPICC()
@@ -761,6 +830,11 @@ MFRC522::StatusCode MFRC522::PICC_REQA_or_WUPA(	byte command, 		///< The command
 		return status;
 	}
 	if (*bufferSize != 2 || validBits != 0) {		// ATQA must be exactly 16 bits.
+		printf("Error ATQA: buf= %u vBits= %u\n",*bufferSize,validBits);
+		 for(byte u = 0; u < *bufferSize; ++u)
+		{
+		 	printf("0x%X\n",bufferATQA[u]);
+		}
 		return STATUS_ERROR;
 	}
 	return STATUS_OK;
@@ -892,12 +966,14 @@ MFRC522::StatusCode MFRC522::PICC_Select(	Uid *uid,			///< Pointer to Uid struct
 			// Find out how many bits and bytes to send and receive.
 			if (currentLevelKnownBits >= 32) { // All UID bits in this Cascade Level are known. This is a SELECT.
 				//Serial.print(F("SELECT: currentLevelKnownBits=")); Serial.println(currentLevelKnownBits, DEC);
+				printf("SELECT: currentLevelKnownBits=%d\n\r",currentLevelKnownBits);
 				buffer[1] = 0x70; // NVB - Number of Valid Bits: Seven whole bytes
 				// Calculate BCC - Block Check Character
 				buffer[6] = buffer[2] ^ buffer[3] ^ buffer[4] ^ buffer[5];
 				// Calculate CRC_A
 				result = PCD_CalculateCRC(buffer, 7, &buffer[7]);
 				if (result != STATUS_OK) {
+					printf("error in CRC\n");
 					return result;
 				}
 				txLastBits		= 0; // 0 => All 8 bits are valid.
@@ -908,6 +984,7 @@ MFRC522::StatusCode MFRC522::PICC_Select(	Uid *uid,			///< Pointer to Uid struct
 			}
 			else { // This is an ANTICOLLISION.
 				//Serial.print(F("ANTICOLLISION: currentLevelKnownBits=")); Serial.println(currentLevelKnownBits, DEC);
+				printf("ANTICOLLISION: currentLevelKnownBits=%d\n\r",currentLevelKnownBits);
 				txLastBits		= currentLevelKnownBits % 8;
 				count			= currentLevelKnownBits / 8;	// Number of whole bytes in the UID part.
 				index			= 2 + count;					// Number of whole bytes: SEL + NVB + UIDs
@@ -923,10 +1000,13 @@ MFRC522::StatusCode MFRC522::PICC_Select(	Uid *uid,			///< Pointer to Uid struct
 			PCD_WriteRegister(BitFramingReg, (rxAlign << 4) + txLastBits);	// RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
 			
 			// Transmit the buffer and receive the response.
+			printf("PICC_Select transceive\n");
 			result = PCD_TransceiveData(buffer, bufferUsed, responseBuffer, &responseLength, &txLastBits, rxAlign);
 			if (result == STATUS_COLLISION) { // More than one PICC in the field => collision.
+				printf("Status Colision\n");
 				byte valueOfCollReg = PCD_ReadRegister(CollReg); // CollReg[7..0] bits are: ValuesAfterColl reserved CollPosNotValid CollPos[4:0]
 				if (valueOfCollReg & 0x20) { // CollPosNotValid
+					printf("Invalid Colision\n");
 					return STATUS_COLLISION; // Without a valid collision position we cannot continue
 				}
 				byte collisionPos = valueOfCollReg & 0x1F; // Values 0-31, 0 means bit 32.
@@ -934,6 +1014,7 @@ MFRC522::StatusCode MFRC522::PICC_Select(	Uid *uid,			///< Pointer to Uid struct
 					collisionPos = 32;
 				}
 				if (collisionPos <= currentLevelKnownBits) { // No progress - should not happen 
+					printf("Internal Error\n");
 					return STATUS_INTERNAL_ERROR;
 				}
 				// Choose the PICC with the bit set.
@@ -1533,7 +1614,7 @@ void MFRC522::PCD_DumpVersionToSerial() {
 		case 0x90: printf(" = v0.0\n\r");break;//Serial.println(F(" = v0.0"));     break;
 		case 0x91: printf(" = v1.0\n\r");break;//Serial.println(F(" = v1.0"));     break;
 		case 0x92: printf(" = v2.0\n\r");break;//Serial.println(F(" = v2.0"));     break;
-		case 0x12: printf(" = counterfeit chip\n\r");//Serial.println(F(" = counterfeit chip"));     break;
+		case 0x12: printf(" = counterfeit chip\n\r");break;//Serial.println(F(" = counterfeit chip"));     break;
 		default:   printf(" = (unknown)\n\r");//Serial.println(F(" = (unknown)"));
 	}
 	// When 0x00 or 0xFF is returned, communication probably failed
@@ -2160,5 +2241,34 @@ bool MFRC522::PICC_IsNewCardPresent() {
  */
 bool MFRC522::PICC_ReadCardSerial() {
 	MFRC522::StatusCode result = PICC_Select(&uid);
+	switch (result)
+	{
+	case StatusCode::STATUS_COLLISION:
+		printf("Status Colision\n");
+		break;
+	case StatusCode::STATUS_CRC_WRONG:
+		printf("Status CRC_WRONG\n");
+		break;
+	case StatusCode::STATUS_ERROR:
+		printf("Status ERROR\n");
+		break;
+	case StatusCode::STATUS_INTERNAL_ERROR:
+		printf("Status INTERNAL_ERROR\n");
+		break;
+	case StatusCode::STATUS_INVALID:
+		printf("Status INVALID\n");
+		break;
+	case StatusCode::STATUS_MIFARE_NACK:
+		printf("Status MIFARE_NACK\n");
+		break;
+	case StatusCode::STATUS_NO_ROOM:
+		printf("Status NO ROOM\n");
+		break;
+	case StatusCode::STATUS_TIMEOUT:
+		printf("Timeout\n");
+		break;
+	default:
+		break;
+	}
 	return (result == STATUS_OK);
 } // End 

@@ -9,7 +9,8 @@
 #define PIN_CLK drvIoPin_t::DRV_IO_PIN_18
 #define PIN_MISO drvIoPin_t::DRV_IO_PIN_19
 #define PIN_MOSI drvIoPin_t::DRV_IO_PIN_23
-#define PIN_SS drvIoPin_t::DRV_IO_PIN_21//5
+#define PIN_SS drvIoPin_t::DRV_IO_PIN_5
+#define PIN_RST drvIoPin_t::DRV_IO_PIN_17
 
 spi_config_t config = 
     {
@@ -25,7 +26,7 @@ spi_config_t config =
 // Spi handling
 DrvSPI spi_instance(&config,drvIoPort_t::DRV_IO_PORT_A,PIN_SS,false);
 // Pin for reseting MFRC522
-DrvGPIO RFID_reset(drvIoPort_t::DRV_IO_PORT_A,drvIoPin_t::DRV_IO_PIN_17);
+DrvGPIO RFID_reset(drvIoPort_t::DRV_IO_PORT_A,PIN_RST);
 // Object construction
 MFRC522 rfid_reader(&spi_instance,&RFID_reset);
 
@@ -38,7 +39,18 @@ void rfidTask(void *pvParameter)
     //vTaskDelay(pdMS_TO_TICKS(5000));
     rfid_reader.PCD_Init();
     rfid_reader.PCD_DumpVersionToSerial();
-    printf("Scan PICC to see UID, SAK, type, and data blocks...\n\r");
+    //printf("testing MFRC522\n");
+    if(0)//!rfid_reader.PCD_PerformSelfTest())
+    {
+        printf("*Test Failed - 2");
+        fflush(stdout);
+        while (1)
+        {
+            vTaskDelay(1);
+        }
+        
+    }
+    printf("Scan PICC to see UID, SAK, type, and data blocks...\n");
     //uint8_t LastUid[10];
     int64_t now = esp_timer_get_time();
     for(;;)
@@ -54,15 +66,23 @@ void rfidTask(void *pvParameter)
         //    continue;
         //}
         }
-        vTaskDelay(pdMS_TO_TICKS(1));
-        if(!rfid_reader.PICC_IsNewCardPresent() || !rfid_reader.PICC_ReadCardSerial())
+        vTaskDelay(1);
+        // if(!rfid_reader.PICC_IsNewCardPresent() || !rfid_reader.PICC_ReadCardSerial())
+        // {
+        //     //taskYIELD();
+        //     //
+        //     continue;
+        // }
+        if(rfid_reader.PICC_IsNewCardPresent())
         {
-            //taskYIELD();
-            //
-            continue;
+            printf("CARD IS PRESEEEEEEEEEEEEEEEEEEENT\n");
+            if(rfid_reader.PICC_ReadCardSerial())
+            {        
+                rfid_reader.PICC_DumpDetailsToSerial(&(rfid_reader.uid));
+                printf("\n**********\n");
+            }
+            else continue;
         }
-        rfid_reader.PICC_DumpDetailsToSerial(&(rfid_reader.uid));
-        printf("\n**********\n");
     }
 }
 
