@@ -1,14 +1,10 @@
-// mosquitto -v -c testconfig.txt / ativar mosquitto com o ip da maquina
 #include "app.hpp"
-#include "DEV_MQTT/dev_mqtt_client.hpp"
-#include "DEV_WIFI/dev_wifi.hpp"
-#include "esp_log.h"
-#include "esp_system.h"
 #include "cJSON.h"
-#include <iostream>
+#include <string>
 
-WIFI wifi("Vrumvrum", "jayjayojatinho");                 // WiFi SSID and password
-MQTTClient mqttClient("mqtt://test.mosquitto.org:1883"); // MQTT broker URI
+#define WIFI_SSID "Vrumvrum"
+#define WIFI_PASS "jayjayojatinho"
+#define MQTT_BROKER_URL "mqtt://test.mosquitto.org"
 
 // Timezone offset in seconds (3 hours for Brazil, GMT -3)
 const long timezoneOffset = -3 * 3600;
@@ -16,24 +12,29 @@ const long timezoneOffset = -3 * 3600;
 /**
  * @brief Constructor for the AppManager class.
  */
-AppManager::AppManager()
-{
-    initialize();
+AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL) {
+	setup();
 }
 
 AppManager::~AppManager() {}
 
-/**
- * @brief Initialize the application components.
- */
-void AppManager::initialize()
+void AppManager::message_callback(const char *topic, const char *message)
 {
-    // Start WiFi and MQTT services
-    wifi.start();
-    mqttClient.start();
-    vTaskDelay(pdMS_TO_TICKS(10000));
-    mqttClient.setMessageCallback(confirmationHandler);
-    mqttClient.subscribe("lock/access/confirmation");
+    if (std::string(topic) == "lock/access/confirmation")
+    {
+        printf("Confirmation received: %s\n", message);
+    }
+}
+
+void AppManager::setup() {
+	WiFiConnection wifi;
+	wifi.connect(WIFI_SSID, WIFI_PASS);
+
+	mqtt_client.setMessageCallback(message_callback);
+	mqtt_client.start();
+	mqtt_client.subscribe("lock/topic/test");
+	mqtt_client.publish("lock/topic/test", "Hello from ESP32!");
+	mqtt_client.subscribe("lock/access/confirmation");
 }
 
 /**
@@ -41,21 +42,14 @@ void AppManager::initialize()
  */
 void AppManager::application()
 {
-    // Create the JSON object for the message
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "rfid", "1234569");
-    char *json_str = cJSON_Print(root);
-    mqttClient.publish("lock/access", json_str);
+	// Create the JSON object for the message
+	cJSON *root = cJSON_CreateObject();
+	cJSON_AddStringToObject(root, "rfid", "1234569");
+	char *json_str = cJSON_Print(root);
+	mqtt_client.publish("lock/access", json_str);
 
-    // Clean up JSON object and string
-    cJSON_Delete(root);
-    free(json_str);
+	// Clean up JSON object and string
+	cJSON_Delete(root);
+	free(json_str);
 }
 
-void AppManager::confirmationHandler(const char *topic, const char *message)
-{
-    if (std::string(topic) == "lock/access/confirmation")
-    {
-        printf("Confirmation received: %s\n", message);
-    }
-}

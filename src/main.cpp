@@ -1,7 +1,5 @@
 #include "main.hpp"
 #include "app.hpp"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 
 void AppManagerTask(void *pvParameters)
 {
@@ -9,7 +7,7 @@ void AppManagerTask(void *pvParameters)
   while (true)
   {
     appManager.application();
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
   }
 }
 
