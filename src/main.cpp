@@ -52,28 +52,15 @@ void rfidTask(void *pvParameter)
         
     }
     printf("Scan PICC to see UID, SAK, type, and data blocks...\n");
-    //uint8_t LastUid[10];
     int64_t now = esp_timer_get_time();
     for(;;)
     {
-        //vTaskDelay(pdMS_TO_TICKS(20));
         if(now+2e6 <= esp_timer_get_time())
         {
             printf("...\n");
             now = esp_timer_get_time();
-        //vTaskDelay(pdMS_TO_TICKS(10));
-        //if(!rfid_reader.PICC_IsNewCardPresent() || !rfid_reader.PICC_ReadCardSerial())
-        //{
-        //    continue;
-        //}
         }
         vTaskDelay(1);
-        // if(!rfid_reader.PICC_IsNewCardPresent() || !rfid_reader.PICC_ReadCardSerial())
-        // {
-        //     //taskYIELD();
-        //     //
-        //     continue;
-        // }
         if(rfid_reader.PICC_IsNewCardPresent())
         {
             printf("CARD IS PRESEEEEEEEEEEEEEEEEEEENT\n");
