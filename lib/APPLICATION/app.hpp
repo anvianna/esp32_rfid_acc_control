@@ -12,4 +12,5 @@ public:
   void application();
 private:
     MQTTClient mqtt_client;  // Membro da classe para o objeto MQTTClient
+    WIFI wifi;
 };

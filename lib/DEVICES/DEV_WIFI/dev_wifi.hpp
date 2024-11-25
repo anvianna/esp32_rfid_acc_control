@@ -1,12 +1,25 @@
-#ifndef DEV_WIFI_HPP
-#define DEV_WIFI_HPP
+#ifndef WIFI_H
+#define WIFI_H
 
 #include "esp_wifi.h"
-#include "esp_event.h"
+#include "nvs_flash.h"
+#include "esp_log.h"
 
-class WiFiConnection {
+class WIFI
+{
 public:
-    void connect(const char* ssid, const char* password);
+  WIFI(const char *ssid, const char *password);
+  void start();
+
+private:
+  const char *ssid;
+  const char *password;
+  static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
+  void wifi_init_sta();
+
+  static EventGroupHandle_t s_wifi_event_group;
+  static const char *TAG;
+  static const int WIFI_CONNECTED_BIT;
 };
 
-#endif // DEV_WIFI_HPP
+#endif // WIFI_H

@@ -12,7 +12,7 @@ const long timezoneOffset = -3 * 3600;
 /**
  * @brief Constructor for the AppManager class.
  */
-AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL) {
+AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL), wifi(WIFI_SSID, WIFI_PASS) {
 	setup();
 }
 
@@ -27,8 +27,7 @@ void AppManager::message_callback(const char *topic, const char *message)
 }
 
 void AppManager::setup() {
-	WiFiConnection wifi;
-	wifi.connect(WIFI_SSID, WIFI_PASS);
+    wifi.start();
 
 	mqtt_client.setMessageCallback(message_callback);
 	mqtt_client.start();
