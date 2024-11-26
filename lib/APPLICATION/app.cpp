@@ -14,6 +14,7 @@ const long timezoneOffset = -3 * 3600;
  */
 AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL), wifi(WIFI_SSID, WIFI_PASS)
 {
+	register_rfid = false;
 	setup();
 }
 
@@ -23,9 +24,29 @@ void AppManager::message_callback(const char *topic, const char *message)
 {
 	if (std::string(topic) == "lock/access/confirmation")
 	{
-		// logica quando o rfid for liberado aqui. Colocar ação do motor e leds...
-		printf("Confirmation received: %s\n", message);
+		if (std::string(message) == "1")
+		{
+			// logica quando o rfid for liberado aqui. Colocar ação do motor e leds...
+		}
+		if (std::string(message) == "0")
+		{
+			// 0 para access denied! Piscar led vermelha.
+		}
 	}
+	if (std::string(topic) == "lock/register")
+	{
+		if (std::string(message) == "start register")
+		{
+			register_rfid = true;
+			// pisca led amarela?
+			// logica quando o rfid for ser registrado
+		}
+		if (std::string(message) == "rfid registered")
+		{
+			// pisca led de forma a indicar que o registro foi completo
+		}
+	}
+	printf("Topic: %s, Message: %s\n", topic, message);
 }
 
 void AppManager::setup()
@@ -34,25 +55,40 @@ void AppManager::setup()
 
 	mqtt_client.setMessageCallback(message_callback);
 	mqtt_client.start();
-	mqtt_client.subscribe("lock/topic/test");
-	mqtt_client.publish("lock/topic/test", "Hello from ESP32!");
+	mqtt_client.publish("lock/test", "Hello from ESP32!");
 	mqtt_client.subscribe("lock/access/confirmation");
+	mqtt_client.subscribe("lock/register");
 }
 
 /**
  * @brief Main application logic.
  */
-void AppManager::application()
+void AppManager::application(const byte *uidByte, size_t size)
 {
+	// Convert UID bytes to a string representation
+	char rfid_str[21]; // Each byte represented as 2 hex digits + null terminator (10 * 2 + 1)
+	for (size_t i = 0; i < size; ++i)
+	{
+		sprintf(&rfid_str[i * 2], "%02X", uidByte[i]);
+	}
 
-	// Quando houver uma leitura de rfid fazer o processo a seguir:
-	//  Create the JSON object for the message
+	// Create the JSON object for the message
 	cJSON *root = cJSON_CreateObject();
-	// trocar o dado 1234569 pela rfid lida
-	cJSON_AddStringToObject(root, "rfid", "1234569");
+	cJSON_AddStringToObject(root, "rfid", rfid_str);
 	char *json_str = cJSON_Print(root);
-	// publish msg
-	mqtt_client.publish("lock/access", json_str);
+
+	if (register_rfid)
+	{
+		// Publish the JSON message to the register topic
+		mqtt_client.publish("lock/register", json_str);
+		register_rfid = false;
+	}
+	else
+	{
+		// Publish the JSON message to access topic
+		mqtt_client.publish("lock/access", json_str);
+	}
+
 	// Clean up JSON object and string
 	cJSON_Delete(root);
 	free(json_str);
