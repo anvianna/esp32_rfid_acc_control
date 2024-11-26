@@ -6,6 +6,9 @@
 #define WIFI_PASS "jayjayojatinho"
 #define MQTT_BROKER_URL "mqtt://test.mosquitto.org"
 
+const char *registeringName;
+bool register_rfid;
+
 // Timezone offset in seconds (3 hours for Brazil, GMT -3)
 const long timezoneOffset = -3 * 3600;
 
@@ -33,18 +36,10 @@ void AppManager::message_callback(const char *topic, const char *message)
 			// 0 para access denied! Piscar led vermelha.
 		}
 	}
-	if (std::string(topic) == "lock/register")
+	if (std::string(topic) == "lock/register/start")
 	{
-		if (std::string(message) == "start register")
-		{
-			register_rfid = true;
-			// pisca led amarela?
-			// logica quando o rfid for ser registrado
-		}
-		if (std::string(message) == "rfid registered")
-		{
-			// pisca led de forma a indicar que o registro foi completo
-		}
+		register_rfid = true;
+		registeringName = message; // O nome é enviado na mensagem
 	}
 	printf("Topic: %s, Message: %s\n", topic, message);
 }
@@ -57,7 +52,7 @@ void AppManager::setup()
 	mqtt_client.start();
 	mqtt_client.publish("lock/test", "Hello from ESP32!");
 	mqtt_client.subscribe("lock/access/confirmation");
-	mqtt_client.subscribe("lock/register");
+	mqtt_client.subscribe("lock/register/start");
 }
 
 /**
@@ -79,12 +74,16 @@ void AppManager::application(const byte *uidByte, size_t size)
 
 	if (register_rfid)
 	{
+		cJSON_AddStringToObject(root, "name", registeringName);
+		char *json_str = cJSON_Print(root);
 		// Publish the JSON message to the register topic
-		mqtt_client.publish("lock/register", json_str);
+		mqtt_client.publish("lock/register/completed", json_str);
 		register_rfid = false;
+		// desativa blink led registro
 	}
 	else
 	{
+		char *json_str = cJSON_Print(root);
 		// Publish the JSON message to access topic
 		mqtt_client.publish("lock/access", json_str);
 	}

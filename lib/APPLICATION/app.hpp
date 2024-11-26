@@ -12,7 +12,6 @@ public:
   void application(const byte *uidByte, size_t size);
 
 private:
-  static bool register_rfid;
   MQTTClient mqtt_client; // Membro da classe para o objeto MQTTClient
   WIFI wifi;
 };
