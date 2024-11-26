@@ -37,7 +37,7 @@ DrvGPIO RFID_reset(drvIoPort_t::DRV_IO_PORT_A,PIN_RST);
 MFRC522 rfid_reader(&spi_instance,&RFID_reset);
 
 uint8_t LastUidProcessed[10];
-bool new_Uid = false;
+bool refresh_UID = true;
 
 TaskHandle_t rfid_task_handle = nullptr;
 TaskHandle_t MQTT_task_handle = nullptr;
@@ -68,6 +68,7 @@ void rfidTask(void *pvParameter)
         if(now+2e6 <= esp_timer_get_time())
         {
             printf("...\n");
+            refresh_UID = true;
             now = esp_timer_get_time();
         }
         vTaskDelay(1);
@@ -78,12 +79,14 @@ void rfidTask(void *pvParameter)
             {   
                 rfid_reader.PICC_DumpDetailsToSerial(&(rfid_reader.uid));
                 printf("\n**********\n");
-                if(lastUId == rfid_reader.uid)
+                if(!refresh_UID && (lastUId == rfid_reader.uid))
                 {
-                    printf("Same Number\n");
+                    refresh_UID = false;
+                    printf("Same RFID\n");
                     vTaskDelay(pdMS_TO_TICKS(1000));
                     continue;
                 }
+                lastUId = rfid_reader.uid;
                 if(!(xQueueSend(UidQueue,&rfid_reader.uid,pdMS_TO_TICKS(100)) == pdPASS))
                 {
                     printf("Error QueueSend");
