@@ -271,12 +271,26 @@ public:
 	};
 	
 	// A struct used for passing the UID of a PICC.
-	typedef struct {
+	struct Uid {
 		byte		size;			// Number of bytes in the UID. 4, 7 or 10.
 		byte		uidByte[10];
 		byte		sak;			// The SAK (Select acknowledge) byte returned from the PICC after successful selection.
-	} Uid;
+		bool operator==(Uid &uid_b)
+		{
+			if(this->size != uid_b.size) return false;
+			for(uint8_t i=0;i <this->size;i++)
+			{
+				if(this->uidByte[i] == uid_b.uidByte[i]) continue;
+				else
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+	};
 
+	
 	// A struct used for passing a MIFARE Crypto1 key
 	typedef struct {
 		byte		keyByte[MF_KEY_SIZE];

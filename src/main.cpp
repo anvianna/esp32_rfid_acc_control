@@ -2,6 +2,7 @@
 #include "devices.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "driver/spi_master.h"
 #include "esp_timer.h"
 
@@ -38,23 +39,28 @@ MFRC522 rfid_reader(&spi_instance,&RFID_reset);
 uint8_t LastUidProcessed[10];
 bool new_Uid = false;
 
+TaskHandle_t rfid_task_handle = nullptr;
+TaskHandle_t MQTT_task_handle = nullptr;
+QueueHandle_t UidQueue;
+
 void rfidTask(void *pvParameter)
 {
     printf("Teste22\n");
     //vTaskDelay(pdMS_TO_TICKS(5000));
+    MFRC522::Uid lastUId;
     rfid_reader.PCD_Init();
     rfid_reader.PCD_DumpVersionToSerial();
     //printf("testing MFRC522\n");
-    if(0)//!rfid_reader.PCD_PerformSelfTest())
-    {
-        printf("*Test Failed - 2");
-        fflush(stdout);
-        while (1)
-        {
-            vTaskDelay(1);
-        }
+    // if(0)//!rfid_reader.PCD_PerformSelfTest())
+    // {
+    //     printf("*Test Failed - 2");
+    //     fflush(stdout);
+    //     while (1)
+    //     {
+    //         vTaskDelay(1);
+    //     }
         
-    }
+    // }
     printf("Scan PICC to see UID, SAK, type, and data blocks...\n");
     int64_t now = esp_timer_get_time();
     for(;;)
@@ -67,11 +73,21 @@ void rfidTask(void *pvParameter)
         vTaskDelay(1);
         if(rfid_reader.PICC_IsNewCardPresent())
         {
-            printf("CARD IS PRESEEEEEEEEEEEEEEEEEEENT\n");
+            printf("CARD IS PRESENT\n");
             if(rfid_reader.PICC_ReadCardSerial())
-            {        
+            {   
                 rfid_reader.PICC_DumpDetailsToSerial(&(rfid_reader.uid));
                 printf("\n**********\n");
+                if(lastUId == rfid_reader.uid)
+                {
+                    printf("Same Number\n");
+                    vTaskDelay(pdMS_TO_TICKS(1000));
+                    continue;
+                }
+                if(!(xQueueSend(UidQueue,&rfid_reader.uid,pdMS_TO_TICKS(100)) == pdPASS))
+                {
+                    printf("Error QueueSend");
+                }
             }
             else continue;
         }
@@ -82,26 +98,30 @@ void rfidTask(void *pvParameter)
 void AppManagerTask(void *pvParameters)
 {
   AppManager appManager;
-  while (true)
+  MFRC522::Uid MyUid;
+  for(;;)
   {
-    appManager.application();
+    // Check if rfID sent Data
+    if(xQueueReceive(UidQueue,&MyUid,pdMS_TO_TICKS(10)) == pdPASS)
+    {
+        // Send throug MQTT
+        appManager.application();
+    }
     vTaskDelay(3000 / portTICK_PERIOD_MS);
   }
 }
 
-TaskHandle_t rfid_task_handle = nullptr;
-TaskHandle_t MQTT_task_handle = nullptr;
+
 
 extern "C"{
 void app_main()
 {
     printf("Teste1\n");
-
+    UidQueue = xQueueCreate(5,sizeof(MFRC522::uid));
     //Setting RFID reading
-    xTaskCreatePinnedToCore(rfidTask,"rfidTask",1024*10,NULL,1,&rfid_task_handle,0);
-
+    xTaskCreate(rfidTask,"rfidTask",4096,NULL,1,&rfid_task_handle);
     xTaskCreate(AppManagerTask, "AppManagerTask", 4096, NULL, 1, &MQTT_task_handle);
-
+    vTaskStartScheduler();
     for(;;)
     {
         vTaskDelay(pdMS_TO_TICKS(1000));
