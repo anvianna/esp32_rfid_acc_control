@@ -13,5 +13,6 @@
 #define DEVICES_HPP
 
 #include "DEV_MFRC522/MFRC522.h"
+#include "DEV_SG90/dev_sg90.hpp"
 
 #endif
