@@ -5,6 +5,10 @@
 #include "driver/spi_master.h"
 #include "esp_timer.h"
 
+// Ricarti
+#include "main.hpp"
+#include "app.hpp"
+
 // GPIO PINOUT TO SPI
 #define PIN_CLK drvIoPin_t::DRV_IO_PIN_18
 #define PIN_MISO drvIoPin_t::DRV_IO_PIN_19
@@ -75,8 +79,18 @@ void rfidTask(void *pvParameter)
 }
 #endif
 
-TaskHandle_t rfid_task_handle = nullptr;
+void AppManagerTask(void *pvParameters)
+{
+  AppManager appManager;
+  while (true)
+  {
+    appManager.application();
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
+  }
+}
 
+TaskHandle_t rfid_task_handle = nullptr;
+TaskHandle_t MQTT_task_handle = nullptr;
 
 extern "C"{
 void app_main()
@@ -86,9 +100,16 @@ void app_main()
     //Setting RFID reading
     xTaskCreatePinnedToCore(rfidTask,"rfidTask",1024*10,NULL,1,&rfid_task_handle,0);
 
+    xTaskCreate(AppManagerTask, "AppManagerTask", 4096, NULL, 1, &MQTT_task_handle);
+
     for(;;)
     {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 } // extern "C"
+
+
+
+
+
