@@ -5,9 +5,8 @@
 #define WIFI_SSID "Vrumvrum"
 #define WIFI_PASS "jayjayojatinho"
 #define MQTT_BROKER_URL "mqtt://test.mosquitto.org"
-
-const char *registeringName;
-bool register_rfid;
+static std::string registeringName;
+static bool register_rfid;
 
 // Timezone offset in seconds (3 hours for Brazil, GMT -3)
 const long timezoneOffset = -3 * 3600;
@@ -70,25 +69,25 @@ void AppManager::application(const byte *uidByte, size_t size)
 	// Create the JSON object for the message
 	cJSON *root = cJSON_CreateObject();
 	cJSON_AddStringToObject(root, "rfid", rfid_str);
-	char *json_str = cJSON_Print(root);
 
 	if (register_rfid)
 	{
-		cJSON_AddStringToObject(root, "name", registeringName);
+		cJSON_AddStringToObject(root, "name", registeringName.c_str());
 		char *json_str = cJSON_Print(root);
 		// Publish the JSON message to the register topic
 		mqtt_client.publish("lock/register/completed", json_str);
 		register_rfid = false;
 		// desativa blink led registro
+		free(json_str);
 	}
 	else
 	{
 		char *json_str = cJSON_Print(root);
 		// Publish the JSON message to access topic
 		mqtt_client.publish("lock/access", json_str);
+		free(json_str);
 	}
 
 	// Clean up JSON object and string
 	cJSON_Delete(root);
-	free(json_str);
 }
