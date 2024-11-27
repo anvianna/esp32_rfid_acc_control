@@ -5,8 +5,9 @@
 #define WIFI_SSID "Vrumvrum"
 #define WIFI_PASS "jayjayojatinho"
 #define MQTT_BROKER_URL "mqtt://test.mosquitto.org"
-static std::string registeringName;
-static bool register_rfid;
+
+bool register_rfid = false;					// Inicializar como false
+char registeringName[100] = {'\0'}; // Inicializar como uma string vazia
 
 // Timezone offset in seconds (3 hours for Brazil, GMT -3)
 const long timezoneOffset = -3 * 3600;
@@ -14,7 +15,7 @@ const long timezoneOffset = -3 * 3600;
 /**
  * @brief Constructor for the AppManager class.
  */
-AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL), wifi(WIFI_SSID, WIFI_PASS)
+AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL)
 {
 	register_rfid = false;
 	setup();
@@ -37,18 +38,27 @@ void AppManager::message_callback(const char *topic, const char *message)
 	}
 	if (std::string(topic) == "lock/register/start")
 	{
+		printf("Topic: %s, Message: %s\n", topic, message);
 		register_rfid = true;
-		registeringName = message; // O nome é enviado na mensagem
+		strncpy(registeringName, message, sizeof(registeringName) - 1);
+		registeringName[sizeof(registeringName) - 1] = '\0'; // Garantir que termina em '\0'
 	}
 	printf("Topic: %s, Message: %s\n", topic, message);
 }
 
 void AppManager::setup()
 {
-	wifi.start();
+	wifi_config.mode = DRV_WIFI_MODE_STA;
+	wifi_config.ssid_sta = const_cast<char *>(WIFI_SSID);
+	wifi_config.pass_sta = const_cast<char *>(WIFI_PASS);
+	DRV_WIFI_Start(&wifi_config);
+
+	while (DRV_WIFI_connected() != 2)
+		vTaskDelay(1);
 
 	mqtt_client.setMessageCallback(message_callback);
 	mqtt_client.start();
+
 	mqtt_client.publish("lock/test", "Hello from ESP32!");
 	mqtt_client.subscribe("lock/access/confirmation");
 	mqtt_client.subscribe("lock/register/start");
@@ -72,7 +82,7 @@ void AppManager::application(const byte *uidByte, size_t size)
 
 	if (register_rfid)
 	{
-		cJSON_AddStringToObject(root, "name", registeringName.c_str());
+		cJSON_AddStringToObject(root, "name", registeringName);
 		char *json_str = cJSON_Print(root);
 		// Publish the JSON message to the register topic
 		mqtt_client.publish("lock/register/completed", json_str);

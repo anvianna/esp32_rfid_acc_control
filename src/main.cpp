@@ -45,12 +45,7 @@ void rfidTask(void *pvParameter)
 {
     printf("Inicializando RFID...\n");
     rfid_reader.PCD_Init();
-    if (!rfid_reader.PCD_PerformSelfTest())
-    {
-        printf("Erro no teste do MFRC522!\n");
-        vTaskDelay(portMAX_DELAY); // Bloqueia se o RFID não for inicializado
-    }
-
+    rfid_reader.PCD_DumpVersionToSerial();
     MFRC522::Uid lastUid = {};
     int64_t lastCheckTime = esp_timer_get_time();
     for (;;)
@@ -65,6 +60,7 @@ void rfidTask(void *pvParameter)
         {
             if (refresh_UID || !(lastUid == rfid_reader.uid))
             {
+                printf("Novo cartão detectado!\n");
                 lastUid = rfid_reader.uid;
                 refresh_UID = false;
                 if (xQueueSend(UidQueue, &rfid_reader.uid, pdMS_TO_TICKS(100)) != pdPASS)
@@ -103,7 +99,7 @@ void app_main()
     }
 
     xTaskCreate(rfidTask, "rfidTask", 4096, NULL, 5, &rfid_task_handle);
-    xTaskCreate(AppManagerTask, "AppManagerTask", 8192, NULL, 10, &MQTT_task_handle);
+    xTaskCreate(AppManagerTask, "AppManagerTask", 4096, NULL, 10, &MQTT_task_handle);
     for (;;)
     {
         vTaskDelay(pdMS_TO_TICKS(1000));

@@ -13,5 +13,5 @@ public:
 
 private:
   MQTTClient mqtt_client; // Membro da classe para o objeto MQTTClient
-  WIFI wifi;
+  drv_config_wifi_t wifi_config;
 };
