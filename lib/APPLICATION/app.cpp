@@ -17,7 +17,7 @@ const long timezoneOffset = -3 * 3600;
 /**
  * @brief Constructor for the AppManager class.
  */
-AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL), servo(SERVO_PIN), ledBlue(PA2), ledRed(PA22), ledYellow(PA14)
+AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL), servo(SERVO_PIN), ledBlue(PA2), ledRed(PA26), ledYellow(PA27)
 {
 	DrvGPIO resetRFID(PA17);
 	resetRFID.write(false);
@@ -47,10 +47,9 @@ void AppManager::message_callback(const char *topic, const char *message)
 				appManagerInstance->ledBlue.toggle(); // Apaga o LED
 				vTaskDelay(pdMS_TO_TICKS(500));				// Espera 500ms
 			}
-			appManagerInstance->servo.clockWise(0, 90, 90, 500);
+			appManagerInstance->servo.clockWise(0, 90, 90, 1000);
 			ledc_get_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
-			vTaskDelay(pdMS_TO_TICKS(1000));
-			appManagerInstance->servo.anticlockWise(90, 0, 90, 500);
+			appManagerInstance->servo.anticlockWise(90, 0, 90, 1000);
 			ledc_get_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
 			// logica quando o rfid for liberado aqui. Colocar ação do motor e leds...
 		}
