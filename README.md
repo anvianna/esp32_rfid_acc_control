@@ -7,5 +7,5 @@ Development of firmware of ESP32 DEVKIT to control access with RFID Reader commu
 ## Developers
 
 * André Vianna (<andre.v@fieb.org.br>)
-* Ruan Utar ()
-* Jorge Ricatti ()
+* Ruan Utah ()
+* Jorge Ricatti (<jorge.goncalves@fbest.org.br>)
