@@ -1,5 +1,6 @@
 #include <stdio.h>
-#include "../DEVICES/devices.hpp"
+#include "drivers.hpp"
+#include "devices.hpp"
 #include "esp_log.h"
 
 class AppManager
@@ -15,4 +16,7 @@ private:
   MQTTClient mqtt_client; // Membro da classe para o objeto MQTTClient
   drv_config_wifi_t wifi_config;
   SG90 servo;
+  DrvGPIO ledBlue;
+  DrvGPIO ledRed;
+  DrvGPIO ledYellow;
 };
