@@ -5,6 +5,8 @@
 #define WIFI_SSID "Vrumvrum"
 #define WIFI_PASS "jayjayojatinho"
 #define MQTT_BROKER_URL "mqtt://test.mosquitto.org"
+#define SERVO_PIN 4
+static AppManager *appManagerInstance = nullptr;
 
 bool register_rfid = false;					// Inicializar como false
 char registeringName[100] = {'\0'}; // Inicializar como uma string vazia
@@ -15,10 +17,18 @@ const long timezoneOffset = -3 * 3600;
 /**
  * @brief Constructor for the AppManager class.
  */
-AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL)
+AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL), servo(SERVO_PIN), ledBlue(PA2), ledRed(PA22), ledYellow(PA14)
 {
+	DrvGPIO resetRFID(PA17);
+	resetRFID.write(false);
+	resetRFID.write(true);
 	register_rfid = false;
+	ledBlue.write(false);
+	ledRed.write(false);
+	ledYellow.write(false);
 	setup();
+	// Armazenando a instância do AppManager
+	appManagerInstance = this;
 }
 
 AppManager::~AppManager() {}
@@ -29,16 +39,44 @@ void AppManager::message_callback(const char *topic, const char *message)
 	{
 		if (std::string(message) == "1")
 		{
+			// LED TOGGLE 3x (pisca 3 vezes)
+			for (int i = 0; i < 3; ++i)
+			{
+				appManagerInstance->ledBlue.toggle(); // Acende o LED
+				vTaskDelay(pdMS_TO_TICKS(500));				// Espera 500ms
+				appManagerInstance->ledBlue.toggle(); // Apaga o LED
+				vTaskDelay(pdMS_TO_TICKS(500));				// Espera 500ms
+			}
+			appManagerInstance->servo.clockWise(0, 90, 90, 500);
+			ledc_get_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+			vTaskDelay(pdMS_TO_TICKS(1000));
+			appManagerInstance->servo.anticlockWise(90, 0, 90, 500);
+			ledc_get_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
 			// logica quando o rfid for liberado aqui. Colocar ação do motor e leds...
 		}
 		if (std::string(message) == "0")
 		{
+			// LED TOGGLE 3x (pisca 3 vezes)
+			for (int i = 0; i < 3; ++i)
+			{
+				appManagerInstance->ledRed.toggle(); // Acende o LED
+				vTaskDelay(pdMS_TO_TICKS(500));			 // Espera 500ms
+				appManagerInstance->ledRed.toggle(); // Apaga o LED
+				vTaskDelay(pdMS_TO_TICKS(500));			 // Espera 500ms
+			}
 			// 0 para access denied! Piscar led vermelha.
 		}
 	}
 	if (std::string(topic) == "lock/register/start")
 	{
-		printf("Topic: %s, Message: %s\n", topic, message);
+		// LED TOGGLE 3x (pisca 3 vezes)
+		for (int i = 0; i < 3; ++i)
+		{
+			appManagerInstance->ledYellow.toggle(); // Acende o LED
+			vTaskDelay(pdMS_TO_TICKS(500));					// Espera 500ms
+			appManagerInstance->ledYellow.toggle(); // Apaga o LED
+			vTaskDelay(pdMS_TO_TICKS(500));					// Espera 500ms
+		}
 		register_rfid = true;
 		strncpy(registeringName, message, sizeof(registeringName) - 1);
 		registeringName[sizeof(registeringName) - 1] = '\0'; // Garantir que termina em '\0'
@@ -59,9 +97,7 @@ void AppManager::setup()
 	mqtt_client.setMessageCallback(message_callback);
 	mqtt_client.start();
 
-	mqtt_client.publish("lock/test", "Hello from ESP32!");
-	mqtt_client.subscribe("lock/access/confirmation");
-	mqtt_client.subscribe("lock/register/start");
+	servo.init();
 }
 
 /**

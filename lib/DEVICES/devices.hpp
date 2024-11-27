@@ -15,5 +15,6 @@
 #include "DEV_RFID/dev_rfid.hpp"
 #include "DEV_MQTT/dev_mqtt_client.hpp"
 #include "DEV_MFRC522/MFRC522.h"
+#include "DEV_SG90/dev_sg90.hpp"
 
 #endif
