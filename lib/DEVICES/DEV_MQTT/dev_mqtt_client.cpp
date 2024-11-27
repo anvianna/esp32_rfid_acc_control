@@ -23,7 +23,7 @@ void MQTTClient::start()
 // Publish a message to the specified topic
 void MQTTClient::publish(const char *topic, const char *data)
 {
-  esp_mqtt_client_publish(client, topic, data, 0, 1, 0);
+  esp_mqtt_client_publish(client, topic, data, 0, 2, 0);
 }
 
 // Subscribe to the specified topic

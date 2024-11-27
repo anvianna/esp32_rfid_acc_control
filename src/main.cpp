@@ -67,6 +67,10 @@ void rfidTask(void *pvParameter)
                 {
                     printf("Erro ao enviar UID para a fila.\n");
                 }
+                else
+                {
+                    vTaskDelay(pdMS_TO_TICKS(5000));
+                }
             }
         }
         vTaskDelay(pdMS_TO_TICKS(100)); // Reduz consumo de CPU

@@ -123,7 +123,6 @@ void AppManager::application(const byte *uidByte, size_t size)
 		// Publish the JSON message to the register topic
 		mqtt_client.publish("lock/register/completed", json_str);
 		register_rfid = false;
-		// desativa blink led registro
 		free(json_str);
 	}
 	else
@@ -131,6 +130,8 @@ void AppManager::application(const byte *uidByte, size_t size)
 		char *json_str = cJSON_Print(root);
 		// Publish the JSON message to access topic
 		mqtt_client.publish("lock/access", json_str);
+		printf("Publicando no tópico: %s com mensagem: %s\n", (register_rfid ? "lock/register/completed" : "lock/access"), json_str);
+
 		free(json_str);
 	}
 
