@@ -2,8 +2,8 @@
 #include "cJSON.h"
 #include <string>
 
-#define WIFI_SSID "Vrumvrum"
-#define WIFI_PASS "jayjayojatinho"
+#define WIFI_SSID "Redmi_Note_11"//"Vrumvrum"
+#define WIFI_PASS "RedNote11"//"jayjayojatinho"
 #define MQTT_BROKER_URL "mqtt://test.mosquitto.org"
 #define SERVO_PIN 4
 static AppManager *appManagerInstance = nullptr;
@@ -17,7 +17,7 @@ const long timezoneOffset = -3 * 3600;
 /**
  * @brief Constructor for the AppManager class.
  */
-AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL), servo(SERVO_PIN), ledBlue(PA2), ledRed(PA26), ledYellow(PA27)
+AppManager::AppManager() : mqtt_client(MQTT_BROKER_URL), servo(SERVO_PIN), ledBlue(PA25), ledRed(PA27), ledYellow(PA26)
 {
 	DrvGPIO resetRFID(PA17);
 	resetRFID.write(false);
